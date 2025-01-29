@@ -1,4 +1,4 @@
-study "moving_cells_01" / bevy 0.15
+study artwork "moving_cells_01" / bevy 0.15
 
 ![screenshot.png](screenshot.png)
 
