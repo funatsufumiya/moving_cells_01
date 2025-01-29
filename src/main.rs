@@ -24,11 +24,19 @@ fn main() {
         })
         .insert_resource(CellsParam {
             cell_table: CellTable::new("\
-                →←↑
-                ↓0↑
-                →→┘\
+               ┌→→→→→→→→→┐
+               ↑ ┌→→→→→┐ ↓
+               ↑ ↑0   0↓ ↓
+               ↑ └←←←←←┘ ↓
+               ↑ ┏←┓ ┌→┐ ↓
+               ↑ ↓0↑ ↑0↓ ↓
+               ↑ ┗→┛ └←┘ ↓
+               ↑ ┏←←←←←┓ ↓
+               ↑ ↓0   0↑ ↓
+               ↑ ┗→→→→→┛ ↓
+               └←←←←←←←←←┘\
                 "),
-            cell_size: Vec2::new(100.0, 100.0),
+            cell_size: Vec2::new(50.0, 50.0),
             circle_size: 10.0,
             span_sec: 1.0,
         })
@@ -66,12 +74,19 @@ struct Cell {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum MoveType {
     Blank,
-    Identity,
+    Center,
     Left,
+    BottomToLeft,
+    TopToLeft,
     Right,
+    BottomToRight,
+    TopToRight,
     Up,
-    LeftToUp,
+    LeftToTop,
+    RightToTop,
     Down,
+    LeftToBottom,
+    RightToBottom,
 }
 
 impl Cell {
@@ -178,14 +193,24 @@ impl From<Vec2> for MyTransform {
 }
 
 fn move_type_from_char(c: char) -> MoveType {
+    // NOTE
+    // - thin keisen: clock wise
+    // - thick keisen: counter clock wise
     match c {
         ' ' => MoveType::Blank,
-        '0' => MoveType::Identity,
+        '0' => MoveType::Center,
         '←' => MoveType::Left,
+        '┓' => MoveType::BottomToLeft,
+        '┘' => MoveType::TopToLeft,
         '→' => MoveType::Right,
+        '┌' => MoveType::BottomToRight,
+        '┗' => MoveType::TopToRight,
         '↑' => MoveType::Up,
-        '┘' => MoveType::LeftToUp,
+        '┛' => MoveType::LeftToTop,
+        '└' => MoveType::RightToTop,
         '↓' => MoveType::Down,
+        '┐' => MoveType::LeftToBottom,
+        '┏' => MoveType::RightToBottom,
         _ => panic!("Invalid cell type: {}", c),
     }
 }
@@ -240,7 +265,7 @@ fn setup(
         let iy = h - _iy - 1;
         for ix in 0..w {
             let c = cells_param.cell_table.get(ix, iy);
-            // println!("{}, {} = {:?}", ix, iy, move_type_from_char(c));
+            println!("{}, {} = {:?}", ix, _iy, move_type_from_char(c));
             let x = ix as f32 * cells_param.cell_size.x + base_x;
             let y = _iy as f32 * cells_param.cell_size.y + base_y;
             let pos = Vec2::new(x as f32, y as f32);
@@ -288,7 +313,7 @@ fn move_cells(
                 transform.translation.x = -999999.0;
                 transform.translation.y = -999999.0;
             }
-            MoveType::Identity => {
+            MoveType::Center => {
                 // do nothing
                 // transform.translation.x = x;
                 // transform.translation.y = y;
@@ -296,18 +321,46 @@ fn move_cells(
             MoveType::Left => {
                 transform.translation.x = map(rate, 0.0, 1.0, x + w_hf, x - w_hf);
             }
+            MoveType::BottomToLeft => {
+                transform.translation.x = map(rate, 0.0, 1.0, x, x - w_hf);
+                transform.translation.y = map(rate, 0.0, 1.0, y - w_hf, y);
+            }
+            MoveType::TopToLeft => {
+                transform.translation.x = map(rate, 0.0, 1.0, x, x - w_hf);
+                transform.translation.y = map(rate, 0.0, 1.0, y + h_hf, y);
+            }
             MoveType::Right => {
                 transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x + w_hf);
+            }
+            MoveType::BottomToRight => {
+                transform.translation.x = map(rate, 0.0, 1.0, x, x + w_hf);
+                transform.translation.y = map(rate, 0.0, 1.0, y - w_hf, y);
+            }
+            MoveType::TopToRight => {
+                transform.translation.x = map(rate, 0.0, 1.0, x, x + w_hf);
+                transform.translation.y = map(rate, 0.0, 1.0, y + h_hf, y);
             }
             MoveType::Up => {
                 transform.translation.y = map(rate, 0.0, 1.0, y - h_hf, y + h_hf);
             }
-            MoveType::LeftToUp => {
+            MoveType::LeftToTop => {
                 transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x);
+                transform.translation.y = map(rate, 0.0, 1.0, y, y + h_hf);
+            }
+            MoveType::RightToTop => {
+                transform.translation.x = map(rate, 0.0, 1.0, x + w_hf, x);
                 transform.translation.y = map(rate, 0.0, 1.0, y, y + h_hf);
             }
             MoveType::Down => {
                 transform.translation.y = map(rate, 0.0, 1.0, y + h_hf, y - h_hf);
+            }
+            MoveType::LeftToBottom => {
+                transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x);
+                transform.translation.y = map(rate, 0.0, 1.0, y, y - h_hf);
+            }
+            MoveType::RightToBottom => {
+                transform.translation.x = map(rate, 0.0, 1.0, x + w_hf, x);
+                transform.translation.y = map(rate, 0.0, 1.0, y, y - h_hf);
             }
         }
     }
