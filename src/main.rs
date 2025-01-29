@@ -24,7 +24,7 @@ fn main() {
         })
         .insert_resource(CellsParam {
             cell_table: CellTable::new("\
-                LLL
+                LLU
                 LLL
                 LLL\
                 "),
@@ -67,6 +67,8 @@ struct Cell {
 enum MoveType {
     Left,
     Right,
+    Up,
+    LeftToUp,
 }
 
 impl Cell {
@@ -176,6 +178,8 @@ fn create_cell(cell_type: char, pos: Vec2) -> Cell {
     match cell_type {
         'L' => Cell::new(pos, MoveType::Left),
         'R' => Cell::new(pos, MoveType::Right),
+        'U' => Cell::new(pos, MoveType::Up),
+        'u' => Cell::new(pos, MoveType::LeftToUp),
         _ => panic!("Invalid cell type: {}", cell_type),
     }
 }
@@ -217,24 +221,23 @@ fn setup(
     let w = cells_param.cell_table.width;
     let h = cells_param.cell_table.height;
 
+    let base_x = -((w as f32) * cells_param.cell_size.x) / 2.0;
+    let base_y = -((h as f32) * cells_param.cell_size.y) / 2.0;
+
     for iy in 0..h {
         for ix in 0..w {
             let c = cells_param.cell_table.get(ix, iy);
             // println!("{}, {} = {}", ix, iy, c);
-            let x = ix as f32 * cells_param.cell_size.x;
-            let y = iy as f32 * cells_param.cell_size.y;
-            if c == 'L' {
-                let pos = Vec2::new(x as f32, y as f32);
-                let rot = Quat::from_rotation_z(0.0);
-                commands.spawn((
-                    Mesh2d(mesh.clone()),
-                    MyTransform::from(pos).0.with_rotation(rot),
-                    MeshMaterial2d(materials.add(Color::from(WHITE))),
-                    create_cell(c, pos),
-                ));
-            } else {
-                unreachable!();
-            }
+            let x = ix as f32 * cells_param.cell_size.x + base_x;
+            let y = iy as f32 * cells_param.cell_size.y + base_y;
+            let pos = Vec2::new(x as f32, y as f32);
+            let rot = Quat::from_rotation_z(0.0);
+            commands.spawn((
+                Mesh2d(mesh.clone()),
+                MyTransform::from(pos).0.with_rotation(rot),
+                MeshMaterial2d(materials.add(Color::from(WHITE))),
+                create_cell(c, pos),
+            ));
         }
     }
 }
@@ -256,7 +259,9 @@ fn move_cells(
 ) {
     let ss = cells_param.span_sec;
     let w = cells_param.cell_size.x;
+    let h = cells_param.cell_size.y;
     let w_hf = w / 2.0;
+    let h_hf = h / 2.0;
     let rate: f32 = ((time.elapsed_secs_f64() % (ss as f64)) / (ss as f64)) as f32;
 
     // move circle from right to left
@@ -270,6 +275,13 @@ fn move_cells(
             }
             MoveType::Right => {
                 transform.translation.x = map(rate, 0.0, 1.0, x + w_hf, x - w_hf);
+            }
+            MoveType::Up => {
+                transform.translation.y = map(rate, 0.0, 1.0, y - h_hf, y + h_hf);
+            }
+            MoveType::LeftToUp => {
+                transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x);
+                transform.translation.y = map(rate, 0.0, 1.0, y, y + h_hf);
             }
         }
     }
