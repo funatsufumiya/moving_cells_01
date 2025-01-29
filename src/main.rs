@@ -24,9 +24,9 @@ fn main() {
         })
         .insert_resource(CellsParam {
             cell_table: CellTable::new("\
-                LLU
-                LLL
-                LLL\
+                →←↑
+                ↓0↑
+                →→┘\
                 "),
             cell_size: Vec2::new(100.0, 100.0),
             circle_size: 10.0,
@@ -65,10 +65,13 @@ struct Cell {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum MoveType {
+    Blank,
+    Identity,
     Left,
     Right,
     Up,
     LeftToUp,
+    Down,
 }
 
 impl Cell {
@@ -92,7 +95,7 @@ impl CellTable {
         // construct a table
         let mut table = Vec::new();
 
-        let width = cell_info.lines().map(|line| line.len()).max().unwrap();
+        let width = cell_info.lines().map(|line| line.chars().count()).max().unwrap();
         let height = cell_info.lines().count();
 
         for line in cell_info.lines() {
@@ -174,14 +177,22 @@ impl From<Vec2> for MyTransform {
     }
 }
 
-fn create_cell(cell_type: char, pos: Vec2) -> Cell {
-    match cell_type {
-        'L' => Cell::new(pos, MoveType::Left),
-        'R' => Cell::new(pos, MoveType::Right),
-        'U' => Cell::new(pos, MoveType::Up),
-        'u' => Cell::new(pos, MoveType::LeftToUp),
-        _ => panic!("Invalid cell type: {}", cell_type),
+fn move_type_from_char(c: char) -> MoveType {
+    match c {
+        ' ' => MoveType::Blank,
+        '0' => MoveType::Identity,
+        '←' => MoveType::Left,
+        '→' => MoveType::Right,
+        '↑' => MoveType::Up,
+        '┘' => MoveType::LeftToUp,
+        '↓' => MoveType::Down,
+        _ => panic!("Invalid cell type: {}", c),
     }
+}
+
+fn create_cell(cell_type: char, pos: Vec2) -> Cell {
+    let move_type = move_type_from_char(cell_type);
+    Cell::new(pos, move_type)
 }
 
 fn setup(
@@ -224,12 +235,14 @@ fn setup(
     let base_x = -((w as f32) * cells_param.cell_size.x) / 2.0;
     let base_y = -((h as f32) * cells_param.cell_size.y) / 2.0;
 
-    for iy in 0..h {
+    for _iy in 0..h {
+        // flip y
+        let iy = h - _iy - 1;
         for ix in 0..w {
             let c = cells_param.cell_table.get(ix, iy);
-            // println!("{}, {} = {}", ix, iy, c);
+            // println!("{}, {} = {:?}", ix, iy, move_type_from_char(c));
             let x = ix as f32 * cells_param.cell_size.x + base_x;
-            let y = iy as f32 * cells_param.cell_size.y + base_y;
+            let y = _iy as f32 * cells_param.cell_size.y + base_y;
             let pos = Vec2::new(x as f32, y as f32);
             let rot = Quat::from_rotation_z(0.0);
             commands.spawn((
@@ -270,11 +283,21 @@ fn move_cells(
         let y = cell.pos.y;
         let move_type = cell.move_type;
         match move_type {
+            MoveType::Blank => {
+                // WORKAROUND
+                transform.translation.x = -999999.0;
+                transform.translation.y = -999999.0;
+            }
+            MoveType::Identity => {
+                // do nothing
+                // transform.translation.x = x;
+                // transform.translation.y = y;
+            }
             MoveType::Left => {
-                transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x + w_hf);
+                transform.translation.x = map(rate, 0.0, 1.0, x + w_hf, x - w_hf);
             }
             MoveType::Right => {
-                transform.translation.x = map(rate, 0.0, 1.0, x + w_hf, x - w_hf);
+                transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x + w_hf);
             }
             MoveType::Up => {
                 transform.translation.y = map(rate, 0.0, 1.0, y - h_hf, y + h_hf);
@@ -282,6 +305,9 @@ fn move_cells(
             MoveType::LeftToUp => {
                 transform.translation.x = map(rate, 0.0, 1.0, x - w_hf, x);
                 transform.translation.y = map(rate, 0.0, 1.0, y, y + h_hf);
+            }
+            MoveType::Down => {
+                transform.translation.y = map(rate, 0.0, 1.0, y + h_hf, y - h_hf);
             }
         }
     }
