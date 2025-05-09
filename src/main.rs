@@ -55,7 +55,7 @@ fn main() {
 
     #[cfg(feature = "egui")]
     app
-        .add_plugins(EguiPlugin)
+        .add_plugins(EguiPlugin{enable_multipass_for_primary_context: false})
         .add_systems(Update, ui_system);
 
     app
@@ -167,7 +167,7 @@ fn cleanup_loading_text(
     loading_text: Query<Entity, With<LoadingText>>,
 ) {
     for entity in loading_text.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }
 
